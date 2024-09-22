@@ -1,0 +1,25 @@
+Language: Cpp
+BasedOnStyle: LLVM
+
+IndentWidth: 4
+ColumnLimit: 0
+AccessModifierOffset: -4
+
+AllowShortBlocksOnASingleLine: false
+AllowShortCaseLabelsOnASingleLine: false
+AllowShortFunctionsOnASingleLine: None
+AllowShortIfStatementsOnASingleLine: Never
+AllowShortLambdasOnASingleLine: None
+AllowShortLoopsOnASingleLine: false
+
+AlwaysBreakTemplateDeclarations: true
+BreakConstructorInitializersBeforeComma: false
+
+PenaltyBreakComment: 80
+
+PackConstructorInitializers: Never
+
+SortIncludes: false
+
+AlignOperands: true
+BreakBeforeTernaryOperators: false
