@@ -19,8 +19,10 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="animation.cpp" />
     <ClCompile Include="field.cpp" />
     <ClCompile Include="main.cpp" />
+    <ClCompile Include="sound_manager.cpp" />
     <ClCompile Include="state.cpp" />
     <ClCompile Include="yukon.cpp" />
   </ItemGroup>
@@ -30,6 +32,7 @@
     <ClInclude Include="deck.h" />
     <ClInclude Include="defs.h" />
     <ClInclude Include="field.h" />
+    <ClInclude Include="sound_manager.h" />
     <ClInclude Include="state.h" />
     <ClInclude Include="util.h" />
     <ClInclude Include="yukon.h" />

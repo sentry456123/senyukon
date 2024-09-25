@@ -6,6 +6,7 @@
 
 #include "deck.h"
 #include "field.h"
+#include "sound_manager.h"
 
 Field::Field() {
     Deck source = {};
@@ -119,24 +120,6 @@ bool Field::can_feed_foundation(int position) const {
 void Field::feed_foundation(int position) {
     (*this)[yukon_size + static_cast<int>((*this)[position].get_suit())] = (*this)[position];
     (*this)[position] = Card{nil};
-}
-
-void Field::auto_feed(Animation &animation) {
-    bool cont = true;
-
-    while (cont) {
-        cont = false;
-        for (int col = 0; col < raw_size; col++) {
-            int front = get_front(col % raw_size);
-            if (can_feed_foundation(front)) {
-                animation.record_frame(*this);
-                feed_foundation(front);
-                cont = true;
-            }
-        }
-    }
-
-    show_available();
 }
 
 void Field::render() {

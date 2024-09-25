@@ -1,6 +1,7 @@
 #pragma once
 
 #include <vector>
+#include <memory>
 
 #include <raylib.h>
 
@@ -18,14 +19,9 @@ struct Path {
     int position = nil;
     std::vector<Path> next_paths{};
     Path *previous_path = nullptr;
-
-    int calc_depth(int depth=1) {
-        for (auto &path : next_paths) {
-            depth += path.calc_depth(depth);
-        }
-        return depth;
-    }
 };
+
+struct DrawPathInfo;
 
 class State {
 public:
@@ -40,9 +36,11 @@ public:
     int path_base_position = nil;
     double time_path_created = 0.0;
     bool should_draw_path = false;
+    Field field_when_path_created;
+    int path_depth_tracker = 0;
 
     // animation stuff
-    Animation auto_feed_animation;
+    std::unique_ptr<Animation> animation;
 
     // rendering stuff
     static constexpr Rectangle reset_button = {10, 10, 130, 40};
@@ -52,6 +50,8 @@ public:
     static constexpr Rectangle load_button = {save_button.x + save_button.width + 10, 10, 120, 40};
 
     // audio stuff
+    bool main_field_is_finished_prev_frame = false;
+    bool say_conglatulations_when_ready = false;
     Music bgm = {};
 
 public:
@@ -65,9 +65,15 @@ private:
     void handle_yukon_movement();
     void handle_camera_movement();
 
+    void auto_feed();
+    
+
     Path collect_path(int cur, int depth=0, Path *prev=nullptr);
     bool delete_useless_paths(Path &path);
     bool can_update_path();
     void update_path();
-    void draw_path(const Path &path, int depth=0);
+    void draw_path(const Path &path, int depth = 0, DrawPathInfo *info = nullptr);
+
+    void make_swap_animation(int selected, int front);
 };
+

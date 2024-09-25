@@ -18,7 +18,6 @@ public:
     void show_available();
     bool can_feed_foundation(int position) const;
     void feed_foundation(int position);
-    void auto_feed(Animation &animation);
     void render();
     bool is_finished() const;
     void load_from_file(const std::string &filename);
@@ -36,6 +35,13 @@ public:
         return internal[static_cast<size_t>(index)];
     }
 
+    bool operator==(const Field &field) const {
+        return memcmp(internal.data(), field.internal.data(), sizeof internal) == 0;
+    }
+
+    bool operator!=(const Field &field) const {
+        return !((*this) == field);
+    }
 
     Card* debug_get_raw() {
         return internal.data();

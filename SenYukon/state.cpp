@@ -5,6 +5,11 @@
 #include "state.h"
 
 #include "raymath.h"
+#include "sound_manager.h"
+
+struct DrawPathInfo {
+    std::array<int, yukon_width> final_depth_display_count;
+};
 
 static constexpr std::array pip_keys = {
     /* order is very important - do not change it! */
@@ -60,26 +65,14 @@ static bool is_placeable(Card prev, Card next) {
     return prev.get_pip() + 1 == next.get_pip();
 }
 
-void Animation::record_frame(const Field &new_frame) {
-    frames.push_back(new_frame);
-}
-
-bool Animation::has_next() const {
-    return iter < frames.size();
-}
-
-Field &Animation::next() {
-    assert(has_next());
-
-    return frames[iter++];
-}
-
 State::State() {
+    SoundManager::startup_singleton();
     bgm = LoadMusicStream("bgm.ogg");
 }
 
 State::~State() {
     UnloadMusicStream(bgm);
+    SoundManager::shutdown_singleton();
 }
 
 void State::handle_input() {
@@ -95,37 +88,55 @@ void State::handle_input() {
 }
 
 void State::update() {
+    if (field_when_path_created != main_field) {
+        should_draw_path = false;
+    }
+
     main_camera.offset = Vector2{GetRenderWidth() / 2.0f, GetRenderHeight() / 2.0f};
 
-    if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
-        if (CheckCollisionPointRec(GetMousePosition(), reset_button)) {
-            main_field = {};
-        }
-        if (CheckCollisionPointRec(GetMousePosition(), auto_button)) {
-            main_field.auto_feed(auto_feed_animation);
-            mode = StateMode::animating;
-        }
-        if (CheckCollisionPointRec(GetMousePosition(), music_toggle_button)) {
-            if (IsMusicStreamPlaying(bgm)) {
-                PauseMusicStream(bgm);
-            } else {
-                PlayMusicStream(bgm);
+    if (mode == StateMode::waiting) {
+        if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
+            if (CheckCollisionPointRec(GetMousePosition(), reset_button)) {
+                main_field = {};
+            }
+            if (CheckCollisionPointRec(GetMousePosition(), auto_button)) {
+                animation = std::make_unique<Animation>(main_field, 0.1);
+                auto_feed();
+                mode = StateMode::animating;
+            }
+            if (CheckCollisionPointRec(GetMousePosition(), music_toggle_button)) {
+                if (IsMusicStreamPlaying(bgm)) {
+                    PauseMusicStream(bgm);
+                } else {
+                    PlayMusicStream(bgm);
+                }
+            }
+            if (CheckCollisionPointRec(GetMousePosition(), save_button)) {
+                main_field.save_to_file("save");
+                status_message = "INFO: Saved game data as \"save\"";
+            }
+            if (CheckCollisionPointRec(GetMousePosition(), load_button)) {
+                main_field.load_from_file("save");
+                status_message = "INFO: Loaded game data from \"save\"";
             }
         }
-        if (CheckCollisionPointRec(GetMousePosition(), save_button)) {
-            main_field.save_to_file("save");
-            status_message = "INFO: Saved game data as \"save\"";
-        }
-        if (CheckCollisionPointRec(GetMousePosition(), load_button)) {
-            main_field.load_from_file("save");
-            status_message = "INFO: Loaded game data from \"save\"";
-        }
     }
 
-    if (mode == StateMode::animating && !auto_feed_animation.has_next()) {
+    if (mode == StateMode::animating && animation->is_finished()) {
         mode = StateMode::waiting;
+        animation.reset();
+    }
+    
+    if (main_field.is_finished() && !main_field_is_finished_prev_frame) {
+        say_conglatulations_when_ready = true;
     }
 
+    if (say_conglatulations_when_ready && mode == StateMode::waiting) {
+        SoundManager::get_singleton()->play_sound("resources/sfx/conglatulations.wav");
+        say_conglatulations_when_ready = false;
+    }
+
+    main_field_is_finished_prev_frame = main_field.is_finished();
     UpdateMusicStream(bgm);
 }
 
@@ -169,7 +180,7 @@ void State::render() {
         }
         break;
     case StateMode::animating:
-        auto_feed_animation.next().render();
+        animation->render();
         break;
     }
 
@@ -219,6 +230,8 @@ void State::render() {
 }
 
 void State::handle_yukon_movement() {
+    bool shift = IsKeyDown(KEY_LEFT_SHIFT) || IsKeyDown(KEY_RIGHT_SHIFT);
+
     if (IsKeyPressed(KEY_W)) {
         if (cursor / raw_size) {
             cursor -= raw_size;
@@ -243,7 +256,7 @@ void State::handle_yukon_movement() {
     }
     if (IsKeyPressed(KEY_T)) {
         should_draw_path = false;
-        if (IsKeyDown(KEY_LEFT_SHIFT)) {
+        if (shift) {
             cursor = cursor % yukon_width; // get the top of yukon col
         } else {
             cursor = cursor % yukon_width; // get the top of yukon col
@@ -255,7 +268,7 @@ void State::handle_yukon_movement() {
 
     if (IsKeyPressed(KEY_B)) {
         should_draw_path = false;
-        if (IsKeyDown(KEY_LEFT_SHIFT)) {
+        if (shift) {
             cursor = yukon_width * (yukon_height - 1) + (cursor % yukon_width);
         } else {
             cursor = cursor % yukon_width; // get the top of yukon col
@@ -265,6 +278,7 @@ void State::handle_yukon_movement() {
 
     if (path_base_position != cursor) {
         path_base_position = cursor;
+        SoundManager::get_singleton()->play_sound("resources/sfx/cursor_move.wav");
         if (can_update_path()) {
             update_path();
 
@@ -297,11 +311,15 @@ void State::handle_yukon_movement() {
         if (selected == nil) {
             if (!main_field[cursor].is_nil() && !main_field[cursor].is_hidden()) {
                 selected = cursor;
+                SoundManager::get_singleton()->play_sound("resources/sfx/select.wav");
             }
         } else if (main_field[selected].get_pip() == pip_king) {
             do {
                 if (cursor % raw_size == selected % raw_size) {
                     if (main_field.can_feed_foundation(cursor)) {
+                        animation = std::make_unique<Animation>(main_field, 0.05);
+                        animation->record_frame(Animation::Movement(cursor, yukon_size + (int)main_field[cursor].get_suit()));
+                        mode = StateMode::animating;
                         main_field.feed_foundation(cursor);
                     }
                     selected = nil;
@@ -314,6 +332,7 @@ void State::handle_yukon_movement() {
                 if (!main_field[front].is_nil()) {
                     break;
                 }
+                make_swap_animation(selected, front);
                 main_field.swap(selected, front);
                 selected = nil;
             } while (false);
@@ -321,6 +340,9 @@ void State::handle_yukon_movement() {
             do {
                 if (cursor % raw_size == selected % raw_size) {
                     if (main_field.can_feed_foundation(cursor)) {
+                        animation = std::make_unique<Animation>(main_field, 0.05);
+                        animation->record_frame(Animation::Movement(cursor, yukon_size + (int)main_field[cursor].get_suit()));
+                        mode = StateMode::animating;
                         main_field.feed_foundation(cursor);
                     }
                     selected = nil;
@@ -330,6 +352,7 @@ void State::handle_yukon_movement() {
                 if (!is_placeable(main_field[selected], main_field[front])) {
                     break;
                 }
+                make_swap_animation(selected, front);
                 main_field.swap(selected, front + raw_size);
                 selected = nil;
             } while (false);
@@ -377,16 +400,22 @@ void State::handle_yukon_movement() {
                 status_message = "";
             } else {
                 status_message = "ERROR: Pip not found";
+                SoundManager::get_singleton()->play_sound("resources/sfx/error.wav");
             }
         }
     }
 
     if (IsKeyPressed(KEY_ESCAPE)) {
-        selected = nil;
+        if (selected != nil) {
+            selected = nil;
+            SoundManager::get_singleton()->play_sound("resources/sfx/cancel.wav");
+        }
     }
 }
 
 void State::handle_camera_movement() {
+    bool shift = IsKeyDown(KEY_LEFT_SHIFT) || IsKeyDown(KEY_RIGHT_SHIFT);
+
     if (IsKeyDown(KEY_LEFT_CONTROL)) {
         if (IsKeyDown(KEY_UP)) {
             main_camera.zoom += zoom_speed;
@@ -395,7 +424,7 @@ void State::handle_camera_movement() {
             main_camera.zoom -= zoom_speed;
         }
     } else {
-        float speed_mod = IsKeyDown(KEY_LEFT_SHIFT) ? 3.0f : 1.0f;
+        float speed_mod = shift ? 3.0f : 1.0f;
         if (IsKeyDown(KEY_UP)) {
             main_camera.target.y -= camera_speed * speed_mod;
         }
@@ -409,6 +438,28 @@ void State::handle_camera_movement() {
             main_camera.target.x += camera_speed * speed_mod;
         }
     }
+}
+
+void State::auto_feed() {
+    bool cont = true;
+
+    while (cont) {
+        cont = false;
+        for (int col = 0; col < raw_size; col++) {
+            int front = main_field.get_front(col % raw_size);
+            if (main_field.can_feed_foundation(front)) {
+                Animation::Movement movement = { 
+                    /* from */ front,
+                    /* to */   yukon_size + (int)main_field[front].get_suit()
+                };
+                animation->record_frame(std::move(movement));
+                main_field.feed_foundation(front);
+                cont = true;
+            }
+        }
+    }
+
+    main_field.show_available();
 }
 
 Path State::collect_path(int cur, int depth, Path *prev) {
@@ -449,10 +500,6 @@ Path State::collect_path(int cur, int depth, Path *prev) {
         }
 
         for (int i = 0; i < yukon_size; i++) {
-            if ((i % yukon_width) == (cur % yukon_width)) {
-                continue;
-            }
-
             Card ca = main_field[i];
 
             if (ca.is_nil())
@@ -463,7 +510,18 @@ Path State::collect_path(int cur, int depth, Path *prev) {
                 continue;
             if (ca.get_pip() != next_pip)
                 continue;
-            next.push_back(i + yukon_width);
+            if (!main_field[i + yukon_width].is_nil()) {
+                main_field[i + yukon_width];
+            }
+            if ((i % yukon_width) == (cur % yukon_width)) {
+                if (i + yukon_width >= yukon_size || main_field[i + yukon_width].is_nil()) {
+                    next.push_back(i);
+                }
+            } else {
+                if (i + yukon_width < yukon_size) {
+                    next.push_back(i + yukon_width);
+                }
+            }
         }
     } while (0);
 
@@ -521,11 +579,25 @@ void State::update_path() {
     base_path = collect_path(cursor);
     delete_useless_paths(base_path);
     time_path_created = GetTime();
+    field_when_path_created = main_field;
+    path_depth_tracker = 0;
 }
 
 static constexpr double animation_speed = 15.0;
 
-void State::draw_path(const Path &path, int depth) {
+void State::draw_path(const Path &path, int depth, DrawPathInfo *info) {
+    if (depth > path_depth_tracker) {
+        path_depth_tracker = depth;
+        SoundManager::get_singleton()->play_sound("resources/sfx/path.wav");
+    }
+    
+    bool created_info = false;
+
+    if (info == nullptr) {
+        info = new DrawPathInfo();
+        created_info = true;
+    }
+
     if (GetTime() - ((double)depth / animation_speed) < time_path_created) {
         return;
     }
@@ -548,6 +620,33 @@ void State::draw_path(const Path &path, int depth) {
         color = Fade(color, normalized_depth);
         DrawLineEx(from, animated_point, 4.0f * normalized_depth, color);
 
-        draw_path(next, depth + 1);
+        if (main_field[next.position].is_nil()) {
+            auto &count = info->final_depth_display_count[next.position % yukon_width];
+            DrawTextEx(GetFontDefault(), std::to_string(depth + 1).c_str(), Vector2Add(to, Vector2{1.0f, 30.0f + 30.0f * count}), 30, 1.0f, LIME);
+            count++;
+        }
+
+        draw_path(next, depth + 1, info);
     }
+
+    if (created_info) {
+        delete info;
+    }
+}
+
+void State::make_swap_animation(int selected, int front) {
+    using Movement = Animation::Movement;
+
+    animation = std::make_unique<Animation>(main_field, 0.05);
+
+    if (main_field[selected].get_pip() != pip_king) {
+        front += yukon_width;     
+    }
+
+    while (selected < yukon_size && !main_field[selected].is_nil()) {
+        animation->record_frame(Movement(selected, front));
+        selected += yukon_width;
+        front += yukon_width;
+    }
+    mode = StateMode::animating;
 }
