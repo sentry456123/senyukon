@@ -51,8 +51,8 @@ constexpr int foundation_count = suit_count;
 constexpr int cell_width = 80;
 constexpr int cell_height = 40;
 
-constexpr float camera_speed = 2.5f;
-constexpr float zoom_speed = 0.1f;
+constexpr float camera_speed = 300.0f;
+constexpr float zoom_speed = 8.0f;
 
 constexpr int pip_ace = 1;
 constexpr int pip_king = 13;

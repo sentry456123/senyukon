@@ -1,34 +1,41 @@
 #include <cassert>
 
 #include "sound_manager.h"
+#include "resource_manager.h"
 
-void SoundManager::play_sound(const char *filepath) {
-    if (!sounds.contains(filepath)) {
-        Sound sound = LoadSound(filepath);
-        sounds.insert({filepath, sound});
+void SoundManager::play_sound(const char *resource_path) {
+    if (!sounds.contains(resource_path)) {
+        Sound sound = resource_manager->load_sound(resource_path);
+        
+        sounds.insert({resource_path, sound});
         PlaySound(sound);
         return;
     }
 
-    Sound sound = sounds.find(filepath)->second;
+    Sound sound = sounds.find(resource_path)->second;
     PlaySound(sound);
+}
+
+SoundManager::SoundManager(ResourceManager *resource_manager)
+    : resource_manager(resource_manager) {
+
 }
 
 SoundManager::~SoundManager() {
     for (auto &sound : sounds) {
-        UnloadSound(sound.second);
+        resource_manager->unload_sound(sound.second);
     }
 }
 
-void SoundManager::startup_singleton() {
-    singleton = new SoundManager();
+void SoundManager::startup_singleton(ResourceManager *resource_manager) {
+    singleton = std::make_unique<SoundManager>(resource_manager);
 }
 
 void SoundManager::shutdown_singleton() {
-    delete singleton;
+    singleton.reset();
 }
 
 SoundManager *SoundManager::get_singleton() {
     assert(singleton);
-    return singleton;
+    return singleton.get();
 }

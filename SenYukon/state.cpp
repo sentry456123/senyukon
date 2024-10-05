@@ -6,6 +6,7 @@
 
 #include "raymath.h"
 #include "sound_manager.h"
+#include "resource_manager.h"
 
 struct DrawPathInfo {
     std::array<int, yukon_width> final_depth_display_count;
@@ -66,13 +67,16 @@ static bool is_placeable(Card prev, Card next) {
 }
 
 State::State() {
-    SoundManager::startup_singleton();
+    ResourceManager::startup_singleton();
+    SoundManager::startup_singleton(ResourceManager::get_singleton());
     bgm = LoadMusicStream("bgm.ogg");
+    prev_time = GetTime();
 }
 
 State::~State() {
     UnloadMusicStream(bgm);
     SoundManager::shutdown_singleton();
+    ResourceManager::shutdown_singleton();
 }
 
 void State::handle_input() {
@@ -132,7 +136,7 @@ void State::update() {
     }
 
     if (say_conglatulations_when_ready && mode == StateMode::waiting) {
-        SoundManager::get_singleton()->play_sound("resources/sfx/conglatulations.wav");
+        SoundManager::get_singleton()->play_sound("sfx/conglatulations.wav");
         say_conglatulations_when_ready = false;
     }
 
@@ -278,7 +282,7 @@ void State::handle_yukon_movement() {
 
     if (path_base_position != cursor) {
         path_base_position = cursor;
-        SoundManager::get_singleton()->play_sound("resources/sfx/cursor_move.wav");
+        SoundManager::get_singleton()->play_sound("sfx/cursor_move.wav");
         if (can_update_path()) {
             update_path();
 
@@ -311,7 +315,7 @@ void State::handle_yukon_movement() {
         if (selected == nil) {
             if (!main_field[cursor].is_nil() && !main_field[cursor].is_hidden()) {
                 selected = cursor;
-                SoundManager::get_singleton()->play_sound("resources/sfx/select.wav");
+                SoundManager::get_singleton()->play_sound("sfx/select.wav");
             }
         } else if (main_field[selected].get_pip() == pip_king) {
             do {
@@ -400,7 +404,7 @@ void State::handle_yukon_movement() {
                 status_message = "";
             } else {
                 status_message = "ERROR: Pip not found";
-                SoundManager::get_singleton()->play_sound("resources/sfx/error.wav");
+                SoundManager::get_singleton()->play_sound("sfx/error.wav");
             }
         }
     }
@@ -408,7 +412,7 @@ void State::handle_yukon_movement() {
     if (IsKeyPressed(KEY_ESCAPE)) {
         if (selected != nil) {
             selected = nil;
-            SoundManager::get_singleton()->play_sound("resources/sfx/cancel.wav");
+            SoundManager::get_singleton()->play_sound("sfx/cancel.wav");
         }
     }
 }
@@ -418,24 +422,24 @@ void State::handle_camera_movement() {
 
     if (IsKeyDown(KEY_LEFT_CONTROL)) {
         if (IsKeyDown(KEY_UP)) {
-            main_camera.zoom += zoom_speed;
+            main_camera.zoom += zoom_speed * GetFrameTime();
         }
         if (IsKeyDown(KEY_DOWN)) {
-            main_camera.zoom -= zoom_speed;
+            main_camera.zoom -= zoom_speed * GetFrameTime();
         }
     } else {
         float speed_mod = shift ? 3.0f : 1.0f;
         if (IsKeyDown(KEY_UP)) {
-            main_camera.target.y -= camera_speed * speed_mod;
+            main_camera.target.y -= camera_speed * speed_mod * GetFrameTime();
         }
         if (IsKeyDown(KEY_DOWN)) {
-            main_camera.target.y += camera_speed * speed_mod;
+            main_camera.target.y += camera_speed * speed_mod * GetFrameTime();
         }
         if (IsKeyDown(KEY_LEFT)) {
-            main_camera.target.x -= camera_speed * speed_mod;
+            main_camera.target.x -= camera_speed * speed_mod * GetFrameTime();
         }
         if (IsKeyDown(KEY_RIGHT)) {
-            main_camera.target.x += camera_speed * speed_mod;
+            main_camera.target.x += camera_speed * speed_mod * GetFrameTime();
         }
     }
 }
@@ -588,7 +592,7 @@ static constexpr double animation_speed = 15.0;
 void State::draw_path(const Path &path, int depth, DrawPathInfo *info) {
     if (depth > path_depth_tracker) {
         path_depth_tracker = depth;
-        SoundManager::get_singleton()->play_sound("resources/sfx/path.wav");
+        SoundManager::get_singleton()->play_sound("sfx/path.wav");
     }
     
     bool created_info = false;

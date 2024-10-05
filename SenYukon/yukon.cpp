@@ -3,8 +3,6 @@
 #include "state.h"
 
 void play() {
-    SetTargetFPS(60);
-
     SetConfigFlags(FLAG_WINDOW_RESIZABLE);
     InitWindow(1280, 720, "Sen Yukon");
     SetExitKey(KEY_NULL);

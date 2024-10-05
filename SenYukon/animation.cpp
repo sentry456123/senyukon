@@ -42,7 +42,7 @@ void Animation::render() {
 
     int index = (int)((GetTime() - time_this_created) / time_frame_take);
     if (played_sound_index != index) {
-        SoundManager::get_singleton()->play_sound("resources/sfx/move.wav");
+        SoundManager::get_singleton()->play_sound("sfx/move.wav");
         played_sound_index = index;
     }
 
