@@ -7,7 +7,7 @@
 #include "field.h"
 #include "sound_manager.h"
 
-static void apply_movement(Field &field, const Animation::Movement &movement) {
+static void apply_movement(Field &field, const Movement &movement) {
     field[movement.to] = field[movement.from];
     field[movement.from] = Card{nil};
 }
@@ -76,7 +76,7 @@ void Animation::render() {
             }
 
             if (from == (y * yukon_width + x)) {
-                Vector2 vfrom = position_to_vector(y*yukon_width+x);
+                Vector2 vfrom = position_to_vector(from);
                 Vector2 vto = position_to_vector(to);
                 double time_since_this_created = GetTime() - time_this_created;
                 float amount = time_since_this_created;

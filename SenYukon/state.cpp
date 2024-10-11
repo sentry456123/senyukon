@@ -70,7 +70,6 @@ State::State() {
     ResourceManager::startup_singleton();
     SoundManager::startup_singleton(ResourceManager::get_singleton());
     bgm = LoadMusicStream("bgm.ogg");
-    prev_time = GetTime();
 }
 
 State::~State() {
@@ -117,10 +116,12 @@ void State::update() {
             }
             if (CheckCollisionPointRec(GetMousePosition(), save_button)) {
                 main_field.save_to_file("save");
+                status_message_color = WHITE;
                 status_message = "INFO: Saved game data as \"save\"";
             }
             if (CheckCollisionPointRec(GetMousePosition(), load_button)) {
                 main_field.load_from_file("save");
+                status_message_color = WHITE;
                 status_message = "INFO: Loaded game data from \"save\"";
             }
         }
@@ -204,9 +205,9 @@ void State::render() {
 
     float status_message_box_height = 50.0f;
     Rectangle status_message_box{0.0f, float(GetRenderHeight() - status_message_box_height), float(GetRenderWidth()), status_message_box_height};
-    DrawRectangleRec(status_message_box, GRAY);
+    DrawRectangleRec(status_message_box, Color{70, 70, 70, 255});
 
-    DrawText(status_message.c_str(), int(status_message_box.x), int(status_message_box.y), int(status_message_box.height), WHITE);
+    DrawText(status_message.c_str(), int(status_message_box.x), int(status_message_box.y), int(status_message_box.height), status_message_color);
 
     Vector2 mousePosition = GetMousePosition();
 
@@ -322,7 +323,7 @@ void State::handle_yukon_movement() {
                 if (cursor % raw_size == selected % raw_size) {
                     if (main_field.can_feed_foundation(cursor)) {
                         animation = std::make_unique<Animation>(main_field, 0.05);
-                        animation->record_frame(Animation::Movement(cursor, yukon_size + (int)main_field[cursor].get_suit()));
+                        animation->record_frame(Movement(cursor, yukon_size + (int)main_field[cursor].get_suit()));
                         mode = StateMode::animating;
                         main_field.feed_foundation(cursor);
                     }
@@ -345,7 +346,7 @@ void State::handle_yukon_movement() {
                 if (cursor % raw_size == selected % raw_size) {
                     if (main_field.can_feed_foundation(cursor)) {
                         animation = std::make_unique<Animation>(main_field, 0.05);
-                        animation->record_frame(Animation::Movement(cursor, yukon_size + (int)main_field[cursor].get_suit()));
+                        animation->record_frame(Movement(cursor, yukon_size + (int)main_field[cursor].get_suit()));
                         mode = StateMode::animating;
                         main_field.feed_foundation(cursor);
                     }
@@ -368,7 +369,8 @@ void State::handle_yukon_movement() {
     }
 
     if (IsKeyPressed(KEY_F5)) {
-        status_message = (std::stringstream() << "Current Yukon address: 0x" << std::hex << std::uppercase << (uintptr_t)main_field.debug_get_raw()).str();
+        status_message_color = WHITE;
+        status_message = (std::stringstream() << "INFO: Current Yukon address: 0x" << std::hex << std::uppercase << (uintptr_t)main_field.debug_get_raw()).str();
     }
 
     {
@@ -403,6 +405,7 @@ void State::handle_yukon_movement() {
             if (found) {
                 status_message = "";
             } else {
+                status_message_color = RED;
                 status_message = "ERROR: Pip not found";
                 SoundManager::get_singleton()->play_sound("sfx/error.wav");
             }
@@ -452,7 +455,7 @@ void State::auto_feed() {
         for (int col = 0; col < raw_size; col++) {
             int front = main_field.get_front(col % raw_size);
             if (main_field.can_feed_foundation(front)) {
-                Animation::Movement movement = { 
+                Movement movement = { 
                     /* from */ front,
                     /* to */   yukon_size + (int)main_field[front].get_suit()
                 };
@@ -620,7 +623,7 @@ void State::draw_path(const Path &path, int depth, DrawPathInfo *info) {
         Color color = LIME;
         float normalized_depth = -((float)depth / (float)max_path_depth) + 1.0f;
         float time_since_path_created = GetTime() - time_path_created;
-        Vector2 animated_point = Vector2Lerp(from, to, Clamp((time_since_path_created - (((float)depth) / animation_speed)) * animation_speed, 0.0f, 1.0f));
+        Vector2 animated_point = Vector2Lerp(from, to, Clamp((time_since_path_created - (depth / animation_speed)) * animation_speed, 0.0f, 1.0f));
         color = Fade(color, normalized_depth);
         DrawLineEx(from, animated_point, 4.0f * normalized_depth, color);
 
@@ -639,8 +642,6 @@ void State::draw_path(const Path &path, int depth, DrawPathInfo *info) {
 }
 
 void State::make_swap_animation(int selected, int front) {
-    using Movement = Animation::Movement;
-
     animation = std::make_unique<Animation>(main_field, 0.05);
 
     if (main_field[selected].get_pip() != pip_king) {

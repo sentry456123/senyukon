@@ -4,18 +4,15 @@
 
 #include "field.h"
 
+struct Movement {
+    int from = nil;
+    int to = nil;
+
+    constexpr Movement() = default;
+    constexpr Movement(int from, int to) : from(from), to(to) {}
+};
+
 class Animation {
-    
-public:
-    struct Movement {
-        int from = nil;
-        int to = nil;
-
-        constexpr Movement() = default;
-        constexpr Movement(int from, int to) : from(from), to(to) {}
-    };
-
-private:
     Field field;
     std::vector<Movement> frames;
     double time_this_created;

@@ -6,7 +6,7 @@
 #include "raylib.h"
 
 class ResourceManager {
-    std::vector<char> zip_image;
+    // std::vector<char> zip_image;
     
 public:
     Sound load_sound(const char *resource_path);

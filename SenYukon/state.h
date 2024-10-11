@@ -27,6 +27,7 @@ class State {
 public:
     // logic stuff
     std::string status_message = "";
+    Color status_message_color = WHITE;
     int cursor = 0;
     int selected = nil;
     Field main_field;
@@ -66,7 +67,6 @@ private:
     void handle_camera_movement();
 
     void auto_feed();
-    
 
     Path collect_path(int cur, int depth=0, Path *prev=nullptr);
     bool delete_useless_paths(Path &path);
