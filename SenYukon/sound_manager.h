@@ -11,9 +11,12 @@ class ResourceManager;
 class SoundManager {
     std::unordered_map<std::string, Sound> sounds;
     ResourceManager *resource_manager;
+    int volume = 100;
 
 public:
     void play_sound(const char *filepath);
+    int get_volume();
+    void set_volume(int volume);
     SoundManager(ResourceManager *resource_manager);
     ~SoundManager();
 

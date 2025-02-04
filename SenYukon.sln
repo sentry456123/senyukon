@@ -7,6 +7,8 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "SenYukon", "SenYukon\SenYuk
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "BIN2C", "BIN2C\BIN2C.vcxproj", "{8898F4A9-BD28-4969-B5A3-DDF0EC7C2808}"
 EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "SenHearts", "SenHearts\SenHearts.vcxproj", "{01E1104C-AAD8-47A9-A797-B6AE47D00A63}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|x64 = Debug|x64
@@ -31,6 +33,14 @@ Global
 		{8898F4A9-BD28-4969-B5A3-DDF0EC7C2808}.Release|x64.Build.0 = Release|x64
 		{8898F4A9-BD28-4969-B5A3-DDF0EC7C2808}.Release|x86.ActiveCfg = Release|Win32
 		{8898F4A9-BD28-4969-B5A3-DDF0EC7C2808}.Release|x86.Build.0 = Release|Win32
+		{01E1104C-AAD8-47A9-A797-B6AE47D00A63}.Debug|x64.ActiveCfg = Debug|x64
+		{01E1104C-AAD8-47A9-A797-B6AE47D00A63}.Debug|x64.Build.0 = Debug|x64
+		{01E1104C-AAD8-47A9-A797-B6AE47D00A63}.Debug|x86.ActiveCfg = Debug|Win32
+		{01E1104C-AAD8-47A9-A797-B6AE47D00A63}.Debug|x86.Build.0 = Debug|Win32
+		{01E1104C-AAD8-47A9-A797-B6AE47D00A63}.Release|x64.ActiveCfg = Release|x64
+		{01E1104C-AAD8-47A9-A797-B6AE47D00A63}.Release|x64.Build.0 = Release|x64
+		{01E1104C-AAD8-47A9-A797-B6AE47D00A63}.Release|x86.ActiveCfg = Release|Win32
+		{01E1104C-AAD8-47A9-A797-B6AE47D00A63}.Release|x86.Build.0 = Release|Win32
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

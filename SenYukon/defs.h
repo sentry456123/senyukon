@@ -36,13 +36,13 @@ private:
     Value value;
 };
 
-constexpr int pips_per_suit = 13;
-constexpr int suit_count = 4;
-constexpr int hidden = pips_per_suit * suit_count;
-constexpr int nil = -1;
-constexpr int raw_size = 7;
+constexpr unsigned char pips_per_suit = 13;
+constexpr unsigned char suit_count = 4;
+constexpr unsigned char hidden = pips_per_suit * suit_count;
+constexpr unsigned char nil = -1;
+constexpr unsigned char row_size = 7;
 
-constexpr int yukon_width = raw_size;
+constexpr int yukon_width = row_size;
 constexpr int yukon_height = pips_per_suit * suit_count;
 
 constexpr int yukon_size = yukon_width * yukon_height;

@@ -21,6 +21,7 @@ class Animation {
 
 public:
     Animation(const Field &field, double time_frame_take);
+    void start();
     void record_frame(Movement &&movement);
     bool is_finished() const;
     void render();

@@ -47,15 +47,12 @@ static constexpr int key_to_pip(int key) {
     return 0;
 }
 
-static_assert(is_key_pip(KEY_J) == true);
-static_assert(is_key_pip(KEY_N) == false);
-static_assert(key_to_pip(KEY_ONE) == 1);
-static_assert(key_to_pip(KEY_J) == 11);
-static_assert(key_to_pip(KEY_Z) == 0);
-
 static bool is_placeable(Card prev, Card next) {
     if (prev.is_hidden()) {
         return false;
+    }
+    if (prev.get_pip() == pip_king && next.is_nil()) {
+        return true;
     }
     if (next.is_hidden()) {
         return false;
@@ -103,16 +100,9 @@ void State::update() {
                 main_field = {};
             }
             if (CheckCollisionPointRec(GetMousePosition(), auto_button)) {
-                animation = std::make_unique<Animation>(main_field, 0.1);
+                animation_queue.emplace(main_field, 0.1);
                 auto_feed();
                 mode = StateMode::animating;
-            }
-            if (CheckCollisionPointRec(GetMousePosition(), music_toggle_button)) {
-                if (IsMusicStreamPlaying(bgm)) {
-                    PauseMusicStream(bgm);
-                } else {
-                    PlayMusicStream(bgm);
-                }
             }
             if (CheckCollisionPointRec(GetMousePosition(), save_button)) {
                 main_field.save_to_file("save");
@@ -124,25 +114,51 @@ void State::update() {
                 status_message_color = WHITE;
                 status_message = "INFO: Loaded game data from \"save\"";
             }
+            if (CheckCollisionPointRec(GetMousePosition(), sound_toggle_button)) {
+                int volume = SoundManager::get_singleton()->get_volume();
+                if (volume) {
+                        SoundManager::get_singleton()->set_volume(0);
+                        cached_volume = volume;
+                } else {
+                    SoundManager::get_singleton()->set_volume(cached_volume);
+                }
+            }
+            if (CheckCollisionPointRec(GetMousePosition(), music_toggle_button)) {
+                if (IsMusicStreamPlaying(bgm)) {
+                    PauseMusicStream(bgm);
+                } else {
+                    PlayMusicStream(bgm);
+                }
+            }
         }
     }
 
-    if (mode == StateMode::animating && animation->is_finished()) {
-        mode = StateMode::waiting;
-        animation.reset();
+    if (mode == StateMode::animating && animation_queue.front().is_finished()) {
+        animation_queue.pop();
+        if (animation_queue.empty()) {
+            mode = StateMode::waiting;
+        } else {
+            animation_queue.front().start();
+        }
     }
     
     if (main_field.is_finished() && !main_field_is_finished_prev_frame) {
-        say_conglatulations_when_ready = true;
+        say_congratulations_when_ready = true;
     }
 
-    if (say_conglatulations_when_ready && mode == StateMode::waiting) {
+    if (say_congratulations_when_ready && mode == StateMode::waiting) {
         SoundManager::get_singleton()->play_sound("sfx/conglatulations.wav");
-        say_conglatulations_when_ready = false;
+        say_congratulations_when_ready = false;
     }
 
     main_field_is_finished_prev_frame = main_field.is_finished();
     UpdateMusicStream(bgm);
+}
+
+static void draw_button(const Rectangle &button, const char *title) {
+    bool collision = CheckCollisionPointRec(GetMousePosition(), button);
+    DrawRectangleRec(button, collision ? WHITE : GRAY);
+    DrawText(title, int(button.x + 5.0f), int(button.y), int(button.height), collision ? BLACK : WHITE);
 }
 
 void State::render() {
@@ -150,10 +166,10 @@ void State::render() {
 
     ClearBackground(BLACK);
     if (selected == nil) {
-        DrawRectangle((cursor % raw_size) * cell_width, cell_height + (cursor / raw_size) * cell_height, cell_width, cell_height, BLUE);
+        DrawRectangle((cursor % row_size) * cell_width, cell_height + (cursor / row_size) * cell_height, cell_width, cell_height, BLUE);
     } else {
-        DrawRectangle((cursor % raw_size) * cell_width, cell_height, cell_width, cell_height * pips_per_suit * suit_count, BLUE);
-        DrawRectangle((selected % raw_size) * cell_width, cell_height + (selected / raw_size) * cell_height, cell_width, cell_height, GREEN);
+        DrawRectangle((cursor % row_size) * cell_width, cell_height, cell_width, cell_height * pips_per_suit * suit_count, BLUE);
+        DrawRectangle((selected % row_size) * cell_width, cell_height + (selected / row_size) * cell_height, cell_width, cell_height, GREEN);
     }
 
     switch (mode) {
@@ -209,28 +225,13 @@ void State::render() {
 
     DrawText(status_message.c_str(), int(status_message_box.x), int(status_message_box.y), int(status_message_box.height), status_message_color);
 
-    Vector2 mousePosition = GetMousePosition();
-
-    bool reset_button_collision = CheckCollisionPointRec(mousePosition, reset_button);
-    DrawRectangleRec(reset_button, reset_button_collision ? WHITE : GRAY);
-    DrawText("Reset", int(reset_button.x + 5.0f), int(reset_button.y), int(reset_button.height), reset_button_collision ? BLACK : WHITE);
-
-    bool auto_button_collision = CheckCollisionPointRec(mousePosition, auto_button);
-    DrawRectangleRec(auto_button, auto_button_collision ? WHITE : GRAY);
-    DrawText("Auto", int(auto_button.x + 5.0f), int(auto_button.y), int(auto_button.height), auto_button_collision ? BLACK : WHITE);
-
-    bool music_toggle_button_collision = CheckCollisionPointRec(mousePosition, music_toggle_button);
-    DrawRectangleRec(music_toggle_button, music_toggle_button_collision ? WHITE : GRAY);
-    DrawText("Music", int(music_toggle_button.x + 5.0f), int(music_toggle_button.y), int(music_toggle_button.height), music_toggle_button_collision ? BLACK : WHITE);
-
-    bool save_button_collision = CheckCollisionPointRec(mousePosition, save_button);
-    DrawRectangleRec(save_button, save_button_collision ? WHITE : GRAY);
-    DrawText("Save", int(save_button.x + 5.0f), int(save_button.y), int(save_button.height), save_button_collision ? BLACK : WHITE);
-
-    bool load_button_collision = CheckCollisionPointRec(mousePosition, load_button);
-    DrawRectangleRec(load_button, load_button_collision ? WHITE : GRAY);
-    DrawText("Load", int(load_button.x + 5.0f), int(load_button.y), int(load_button.height), load_button_collision ? BLACK : WHITE);
-
+    draw_button(reset_button, "Reset");
+    draw_button(auto_button, "Auto");
+    draw_button(save_button, "Save");
+    draw_button(load_button, "Load");
+    draw_button(sound_toggle_button, "Sound");
+    draw_button(music_toggle_button, "Music");
+    
     EndMode2D();
 }
 
@@ -238,25 +239,25 @@ void State::handle_yukon_movement() {
     bool shift = IsKeyDown(KEY_LEFT_SHIFT) || IsKeyDown(KEY_RIGHT_SHIFT);
 
     if (IsKeyPressed(KEY_W)) {
-        if (cursor / raw_size) {
-            cursor -= raw_size;
+        if (cursor / row_size) {
+            cursor -= row_size;
         }
     }
     if (IsKeyPressed(KEY_S)) {
-        if (!(cursor / (yukon_size - raw_size))) {
-            cursor += raw_size;
+        if (!(cursor / (yukon_size - row_size))) {
+            cursor += row_size;
         }
     }
     if (IsKeyPressed(KEY_A)) {
         cursor--;
-        if (!((cursor + 1) % raw_size)) {
-            cursor += raw_size;
+        if (!((cursor + 1) % row_size)) {
+            cursor += row_size;
         }
     }
     if (IsKeyPressed(KEY_D)) {
         cursor++;
-        if (!(cursor % raw_size)) {
-            cursor -= raw_size;
+        if (!(cursor % row_size)) {
+            cursor -= row_size;
         }
     }
     if (IsKeyPressed(KEY_T)) {
@@ -286,7 +287,6 @@ void State::handle_yukon_movement() {
         SoundManager::get_singleton()->play_sound("sfx/cursor_move.wav");
         if (can_update_path()) {
             update_path();
-
         } else {
             should_draw_path = false;
         }
@@ -296,6 +296,23 @@ void State::handle_yukon_movement() {
         if (can_update_path()) {
             update_path();
         }
+    }
+
+    if (IsKeyPressed(KEY_C)) {
+        animation_queue.emplace(main_field, 0.05);
+        auto_move();
+        mode = StateMode::animating;
+    }
+
+    if (IsKeyPressed(KEY_Q)) {
+        animation_queue.emplace(main_field, 0.03);
+        super_auto();
+        mode = StateMode::animating;
+    }
+
+    if (IsKeyPressed(KEY_M)) {
+        mega_auto();
+        mode = StateMode::animating;
     }
 
     main_camera.zoom = std::clamp(main_camera.zoom, 0.3f, 10.0f);
@@ -308,57 +325,61 @@ void State::handle_yukon_movement() {
         bool is_x_in = cursor_x >= 0 && cursor_x < yukon_width;
         bool is_y_in = cursor_y >= 0 && cursor_y < yukon_height;
         if (is_x_in && is_y_in) {
-            cursor = cursor_y * raw_size + cursor_x;
+            cursor = cursor_y * row_size + cursor_x;
         }
     }
 
     if (IsKeyPressed(KEY_ENTER) || IsMouseButtonPressed(MOUSE_BUTTON_RIGHT)) {
         if (selected == nil) {
-            if (!main_field[cursor].is_nil() && !main_field[cursor].is_hidden()) {
+            if (!main_field.get_card(from_coord(cursor)).is_nil() && !main_field.get_card(from_coord(cursor)).is_hidden()) {
                 selected = cursor;
                 SoundManager::get_singleton()->play_sound("sfx/select.wav");
             }
-        } else if (main_field[selected].get_pip() == pip_king) {
+        } else if (main_field.get_card(from_coord(selected)).get_pip() == pip_king) {
             do {
-                if (cursor % raw_size == selected % raw_size) {
-                    if (main_field.can_feed_foundation(cursor)) {
-                        animation = std::make_unique<Animation>(main_field, 0.05);
-                        animation->record_frame(Movement(cursor, yukon_size + (int)main_field[cursor].get_suit()));
+                if (cursor % row_size == selected % row_size) {
+                    if (main_field.can_feed_foundation(from_coord(cursor))) {
+                        animation_queue.emplace(main_field, 0.05);
+                        animation_queue.back().record_frame(Movement(cursor, yukon_size + (int)main_field.get_card(from_coord(cursor)).get_suit()));
                         mode = StateMode::animating;
-                        main_field.feed_foundation(cursor);
+                        main_field.feed_foundation(from_coord(cursor));
                     }
                     selected = nil;
                     break;
                 }
-                int front = main_field.get_front(cursor % raw_size);
-                if (front >= raw_size) {
+                int front = main_field.get_front(cursor % row_size);
+                if (front >= row_size) {
                     break;
                 }
                 if (!main_field[front].is_nil()) {
                     break;
                 }
+                animation_queue.emplace(main_field, 0.05);
                 make_swap_animation(selected, front);
+                mode = StateMode::animating;
                 main_field.swap(selected, front);
                 selected = nil;
             } while (false);
         } else {
             do {
-                if (cursor % raw_size == selected % raw_size) {
+                if (cursor % row_size == selected % row_size) {
                     if (main_field.can_feed_foundation(cursor)) {
-                        animation = std::make_unique<Animation>(main_field, 0.05);
-                        animation->record_frame(Movement(cursor, yukon_size + (int)main_field[cursor].get_suit()));
+                        animation_queue.emplace(main_field, 0.05);
+                        animation_queue.back().record_frame(Movement(cursor, yukon_size + (int)main_field[cursor].get_suit()));
                         mode = StateMode::animating;
                         main_field.feed_foundation(cursor);
                     }
                     selected = nil;
                     break;
                 }
-                int front = main_field.get_front(cursor % raw_size);
+                int front = main_field.get_front(cursor % row_size);
                 if (!is_placeable(main_field[selected], main_field[front])) {
                     break;
                 }
+                animation_queue.emplace(main_field, 0.05);
                 make_swap_animation(selected, front);
-                main_field.swap(selected, front + raw_size);
+                mode = StateMode::animating;
+                main_field.swap(selected, front + row_size);
                 selected = nil;
             } while (false);
         }
@@ -452,14 +473,14 @@ void State::auto_feed() {
 
     while (cont) {
         cont = false;
-        for (int col = 0; col < raw_size; col++) {
-            int front = main_field.get_front(col % raw_size);
+        for (int col = 0; col < row_size; col++) {
+            FieldPosition front = main_field.get_front(col % row_size);
             if (main_field.can_feed_foundation(front)) {
                 Movement movement = { 
                     /* from */ front,
-                    /* to */   yukon_size + (int)main_field[front].get_suit()
+                    /* to   */ yukon_size + (int)main_field[front].get_suit()
                 };
-                animation->record_frame(std::move(movement));
+                animation_queue.back().record_frame(std::move(movement));
                 main_field.feed_foundation(front);
                 cont = true;
             }
@@ -467,6 +488,77 @@ void State::auto_feed() {
     }
 
     main_field.show_available();
+}
+
+void State::auto_move() {
+    if (main_field[cursor].is_nil())
+        return;
+    if (main_field[cursor].is_hidden())
+        return;
+
+    int try_count = 0;
+    const int max_try_count = 64;
+
+    while (!main_field[cursor].is_nil() && try_count < max_try_count) {
+        std::vector<int> shortest = base_path.calculate_shortest();
+
+        for (int i = shortest.size() - 2; i >= 0; i--) {
+            auto front = main_field.get_front(shortest[i + 1] % row_size);
+
+            if (!is_placeable(main_field[shortest[i]], main_field[front])) {
+                break;
+            }
+
+            make_swap_animation(shortest[i], front);
+            if (main_field[shortest[i]].get_pip() == pip_king) {
+                main_field.swap(from_coord(shortest[i]), from_coord(front));
+            }
+            else {
+                main_field.swap(from_coord(shortest[i]), from_coord(front + row_size));
+            }
+        }
+
+        main_field.show_available();
+
+        try_count++;
+        update_path();
+    }
+}
+
+void State::super_auto() {
+    int try_count = 0;
+    const int max_try_count = 256;
+
+    while (try_count < max_try_count) {
+    
+        for (int col = 0; col < row_size; col++) {
+            int front = main_field.get_front(col % row_size);
+            const auto &card = main_field[front];
+            if (!card.is_nil() && !card.is_hidden()) {
+                cursor = front;
+                animation_queue.emplace(main_field, 0.03);
+                auto_move();
+            }
+        }
+
+        try_count++;
+    }
+
+    animation_queue.front().start();
+}
+
+void State::mega_auto() {
+    int try_count = 0;
+    const int max_try_count = 16;
+
+    while (try_count < max_try_count) {
+        super_auto();
+        animation_queue.emplace(main_field, 0.03);
+        auto_feed();
+        try_count++;
+    }
+
+    animation_queue.front().start();
 }
 
 Path State::collect_path(int cur, int depth, Path *prev) {
@@ -575,10 +667,11 @@ bool State::delete_useless_paths(Path &path) {
 
 bool State::can_update_path() {
     auto card = main_field[cursor];
-    bool should_enable = true;
-    should_enable = should_enable && !card.is_nil();
-    should_enable = should_enable && !card.is_hidden();
-    return should_enable;
+    if (card.is_nil())
+        return false;
+    if (card.is_hidden())
+        return false;
+    return true;
 }
 
 void State::update_path() {
@@ -642,16 +735,13 @@ void State::draw_path(const Path &path, int depth, DrawPathInfo *info) {
 }
 
 void State::make_swap_animation(int selected, int front) {
-    animation = std::make_unique<Animation>(main_field, 0.05);
-
     if (main_field[selected].get_pip() != pip_king) {
-        front += yukon_width;     
+        front += yukon_width;
     }
 
     while (selected < yukon_size && !main_field[selected].is_nil()) {
-        animation->record_frame(Movement(selected, front));
+        animation_queue.back().record_frame(Movement(selected, front));
         selected += yukon_width;
         front += yukon_width;
     }
-    mode = StateMode::animating;
 }

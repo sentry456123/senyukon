@@ -1,9 +1,14 @@
 #include <cassert>
+#include <algorithm>
 
 #include "sound_manager.h"
 #include "resource_manager.h"
 
 void SoundManager::play_sound(const char *resource_path) {
+    if (volume == 0) {
+        return;
+    }
+
     if (!sounds.contains(resource_path)) {
         Sound sound = resource_manager->load_sound(resource_path);
         
@@ -13,7 +18,17 @@ void SoundManager::play_sound(const char *resource_path) {
     }
 
     Sound sound = sounds.find(resource_path)->second;
+    SetSoundVolume(sound, volume / 100.0f);
+
     PlaySound(sound);
+}
+
+int SoundManager::get_volume() {
+    return volume;
+}
+
+void SoundManager::set_volume(int volume) {
+    this->volume = std::clamp(volume, 0, 100);
 }
 
 SoundManager::SoundManager(ResourceManager *resource_manager)

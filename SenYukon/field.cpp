@@ -8,13 +8,24 @@
 #include "field.h"
 #include "sound_manager.h"
 
+static FieldPosition from_coord(int coord) {
+    FieldPosition p{};
+    p.x = coord / row_size;
+    p.y = coord % row_size;
+    return p;
+}
+
+static int to_coord(FieldPosition p) {
+    return p.x * row_size + p.y;
+}
+
 Field::Field() {
     Deck source = {};
 
     source.shuffle();
 
-    for (int y = 0; y < raw_size; y++) {
-        for (int x = y; x < raw_size; x++) {
+    for (int y = 0; y < row_size; y++) {
+        for (int x = y; x < row_size; x++) {
             if (x == y) {
                 push(x, source.next().show());
             } else {
@@ -23,7 +34,7 @@ Field::Field() {
         }
     }
     for (int x = 1;; x++) {
-        if (x >= raw_size) {
+        if (x >= row_size) {
             x = 1;
         }
 

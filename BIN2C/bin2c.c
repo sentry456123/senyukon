@@ -12,13 +12,11 @@ int bin2c(void *binary_data, size_t binary_size, FILE *out, const char *array_na
     fprintf(out, "const unsigned char %s[%zu] = {", array_name, binary_size);
 
     while (data != data_end) {
-        fprintf(out, "%hhu,", *data);
+        fprintf(out, "%hhu,\n", *data);
         data++;
     }
 
     fprintf(out, "};");
-
-    fclose(out);
 
     return 0;
 }

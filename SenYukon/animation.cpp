@@ -27,12 +27,16 @@ Animation::Animation(const Field &field, double time_frame_take)
     time_this_created = GetTime();
 }
 
+void Animation::start() {
+    time_this_created = GetTime();
+}
+
 void Animation::record_frame(Movement &&movement) {
     frames.push_back(std::move(movement));
 }
 
 bool Animation::is_finished() const {
-    return (GetTime() - time_this_created) >= frames.size() * time_frame_take;
+    return frames.size() == 0 || (GetTime() - time_this_created) >= frames.size() * time_frame_take;
 }
 
 void Animation::render() {
@@ -52,6 +56,10 @@ void Animation::render() {
 
     Movement current_movement;
 
+    if (frames.size() == 0) {
+        return;
+    }
+
     if (index >= frames.size()) {
         current_movement = *(frames.end()-1);
     } else {
@@ -63,7 +71,7 @@ void Animation::render() {
 
     for (int y = 0; y < yukon_height; y++) {
         for (int x = 0; x < yukon_width; x++) {
-            Card target = dummy_field[x + y * raw_size];
+            Card target = dummy_field[x + y * row_size];
             std::string string = target.to_string();
             Color color;
 

@@ -6,16 +6,16 @@
 #include "defs.h"
 
 class Card {
-    int internal = nil;
+    unsigned char internal = nil;
 
 public:
     Card() = default;
 
-    explicit Card(int source)
+    explicit Card(unsigned char source)
         : internal{source} {
     }
 
-    int get_raw() const {
+    unsigned char get_raw() const {
         return internal;
     }
 
@@ -28,14 +28,14 @@ public:
     }
 
     Card show() const {
-        return Card{internal / hidden ? internal - hidden : internal};
+        return Card(internal / hidden ? internal - hidden : internal);
     }
 
     Card hide() const {
-        return Card{internal / hidden ? internal : internal + hidden};
+        return Card(internal / hidden ? internal : internal + hidden);
     }
 
-    int get_pip() const {
+    unsigned char get_pip() const {
         return (show().internal % pips_per_suit) + 1;
     }
 
